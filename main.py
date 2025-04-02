@@ -1,26 +1,29 @@
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel
-from openai import OpenAI
+from fastapi import FastAPI, Request
+import openai
 import os
-
-client = OpenAI(
-    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
-    base_url=os.getenv("AZURE_OPENAI_ENDPOINT"),
-)
 
 app = FastAPI()
 
-class PlanRequest(BaseModel):
-    goals: str
+# Azure OpenAI settings
+openai.api_type = "azure"
+openai.api_base = os.getenv("AZURE_OPENAI_ENDPOINT")  # e.g., "https://your-resource-name.openai.azure.com/"
+openai.api_version = "2024-02-15-preview"  # check Azure's current version
+openai.api_key = os.getenv("AZURE_OPENAI_KEY")
+deployment_name = "gpt-4o"  # must match the exact name used in Azure deployment
 
 @app.post("/generate-plan")
-async def generate_plan(request: PlanRequest):
+async def generate_plan(request: Request):
+    data = await request.json()
+    goals = data.get("goals")
+
     try:
-        prompt = f"Create a personalized daily plan based on these goals: {request.goals}"
-        response = client.chat.completions.create(
-            model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
-            messages=[{"role": "user", "content": prompt}]
+        response = openai.ChatCompletion.create(
+            engine=deployment_name,
+            messages=[
+                {"role": "system", "content": "You are a helpful assistant that generates action plans."},
+                {"role": "user", "content": f"My goals are: {goals}"}
+            ]
         )
-        return {"plan": response.choices[0].message.content}
+        return {"plan": response.choices[0].message["content"]}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        return {"error": str(e)}
