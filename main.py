@@ -1,26 +1,27 @@
-from fastapi import FastAPI, Request
-import openai
 import os
+import openai
+from fastapi import FastAPI, Request
 
 app = FastAPI()
 
-# Azure OpenAI settings
+# Azure OpenAI specific setup
 openai.api_type = "azure"
-openai.api_base = os.getenv("AZURE_OPENAI_ENDPOINT")  # e.g., "https://your-resource-name.openai.azure.com/"
-openai.api_version = "2024-02-15-preview"  # check Azure's current version
 openai.api_key = os.getenv("AZURE_OPENAI_KEY")
-deployment_name = "gpt-4o"  # must match the exact name used in Azure deployment
+openai.api_base = os.getenv("AZURE_OPENAI_ENDPOINT")  # should end with /
+openai.api_version = "2024-02-15-preview"  # or as per your Azure deployment
+
+deployment_name = "gpt-4o"  # match your Azure deployment name exactly
 
 @app.post("/generate-plan")
 async def generate_plan(request: Request):
     data = await request.json()
-    goals = data.get("goals")
+    goals = data.get("goals", "")
 
     try:
         response = openai.ChatCompletion.create(
-            engine=deployment_name,
+            engine=deployment_name,  # not model=, for Azure
             messages=[
-                {"role": "system", "content": "You are a helpful assistant that generates action plans."},
+                {"role": "system", "content": "You are a helpful assistant that creates daily plans based on user goals."},
                 {"role": "user", "content": f"My goals are: {goals}"}
             ]
         )
