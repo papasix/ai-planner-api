@@ -1,24 +1,33 @@
-from fastapi import FastAPI
+from fastapi import FastAPI, Request, Header, HTTPException
 from pydantic import BaseModel
 import os
 from openai import AzureOpenAI
 
-# Setup Azure OpenAI
+app = FastAPI()
+
+# Azure OpenAI client setup
 client = AzureOpenAI(
     api_key=os.getenv("AZURE_OPENAI_KEY"),
     api_version="2024-02-15-preview",
     azure_endpoint=os.getenv("AZURE_OPENAI_ENDPOINT")
 )
 
-deployment_name = "gpt-4o"  # Your deployment name in Azure
+deployment_name = "gpt-4o"
+EXPECTED_API_KEY = os.getenv("INTERNAL_API_KEY")
 
-app = FastAPI()
-
+# Input model
 class PlanRequest(BaseModel):
     goals: str
 
+# Protected endpoint
 @app.post("/generate-plan")
-async def generate_plan(request: PlanRequest):
+async def generate_plan(
+    request: PlanRequest,
+    x_api_key: str = Header(default=None)
+):
+    if x_api_key != EXPECTED_API_KEY:
+        raise HTTPException(status_code=401, detail="Unauthorized")
+
     try:
         response = client.chat.completions.create(
             model=deployment_name,
