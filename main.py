@@ -1,28 +1,30 @@
-import os
+from fastapi import FastAPI
+from pydantic import BaseModel
 import openai
-from fastapi import FastAPI, Request
+import os
+
+# Azure OpenAI config
+openai.api_type = "azure"
+openai.api_key = os.getenv("AZURE_OPENAI_KEY")
+openai.api_base = os.getenv("AZURE_OPENAI_ENDPOINT")  # e.g. https://your-resource.openai.azure.com/
+openai.api_version = "2024-02-15-preview"
+
+deployment_name = "gpt-4o"  # match your Azure deployment name
 
 app = FastAPI()
 
-# Azure OpenAI specific setup
-openai.api_type = "azure"
-openai.api_key = os.getenv("AZURE_OPENAI_KEY")
-openai.api_base = os.getenv("AZURE_OPENAI_ENDPOINT")  # should end with /
-openai.api_version = "2024-02-15-preview"  # or as per your Azure deployment
-
-deployment_name = "gpt-4o"  # match your Azure deployment name exactly
+# Define request model
+class PlanRequest(BaseModel):
+    goals: str
 
 @app.post("/generate-plan")
-async def generate_plan(request: Request):
-    data = await request.json()
-    goals = data.get("goals", "")
-
+async def generate_plan(request: PlanRequest):
     try:
         response = openai.ChatCompletion.create(
-            engine=deployment_name,  # not model=, for Azure
+            engine=deployment_name,  # Azure requires engine, not model
             messages=[
                 {"role": "system", "content": "You are a helpful assistant that creates daily plans based on user goals."},
-                {"role": "user", "content": f"My goals are: {goals}"}
+                {"role": "user", "content": f"My goals are: {request.goals}"}
             ]
         )
         return {"plan": response.choices[0].message["content"]}
