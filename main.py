@@ -3,8 +3,10 @@ from pydantic import BaseModel
 from openai import OpenAI
 import os
 
-# Access API key from Render environment variable
-client = OpenAI(api_key=os.getenv("OPENAI_API_KEY"))
+client = OpenAI(
+    api_key=os.getenv("AZURE_OPENAI_API_KEY"),
+    base_url=os.getenv("AZURE_OPENAI_ENDPOINT"),
+)
 
 app = FastAPI()
 
@@ -16,7 +18,7 @@ async def generate_plan(request: PlanRequest):
     try:
         prompt = f"Create a personalized daily plan based on these goals: {request.goals}"
         response = client.chat.completions.create(
-            model="gpt-3.5-turbo",
+            model=os.getenv("AZURE_OPENAI_DEPLOYMENT"),
             messages=[{"role": "user", "content": prompt}]
         )
         return {"plan": response.choices[0].message.content}
